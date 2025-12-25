@@ -4,7 +4,7 @@ const dotenv = require("dotenv");
 
 // Import Routes
 const productRoutes = require("./routes/productRoutes");
-const bannerRoutes = require("./routes/bannerRoutes"); // Pastikan buat file ini jg
+const bannerRoutes = require("./routes/bannerRoutes");
 
 dotenv.config();
 const app = express();

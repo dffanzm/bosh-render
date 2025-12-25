@@ -1,13 +1,16 @@
 const express = require("express");
 const router = express.Router();
-const {
-  getProducts,
-  createProduct,
-  deleteProduct,
-} = require("../controllers/productController");
 
-router.get("/", getProducts);
-router.post("/", createProduct);
-router.delete("/:id", deleteProduct);
+// ✅ BENAR: Import dari bannerController
+const {
+  getBanners,
+  createBanner,
+  deleteBanner,
+} = require("../controllers/bannerController");
+
+// ✅ Panggil fungsi banner
+router.get("/", getBanners);
+router.post("/", createBanner);
+router.delete("/:id", deleteBanner);
 
 module.exports = router;
