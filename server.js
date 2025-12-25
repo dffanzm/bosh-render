@@ -18,3 +18,9 @@ app.use("/api/banners", bannerRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+//vercel setup
+module.exports = app;
+if (require.main === module) {
+  app.listen(3000, () => console.log("Server ready on port 3000."));
+}
