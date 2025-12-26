@@ -11,11 +11,9 @@ const getProducts = async (req, res) => {
   res.json(data);
 };
 
-// 2. Get Single Product by ID (Direct DB Query)
+// 2. Get Single Product by ID
 const getProductById = async (req, res) => {
   const { id } = req.params;
-
-  // .single() biar Supabase tau kita cuma mau ambil 1 object, bukan array
   const { data, error } = await supabase
     .from("products")
     .select("*")
@@ -26,14 +24,13 @@ const getProductById = async (req, res) => {
   res.json(data);
 };
 
-// 3. Get Products by Tag (Direct DB Query - No Looping!)
+// 3. Get Products by Tag
 const getProductsByTag = async (req, res) => {
   const { tag } = req.params;
-
   const { data, error } = await supabase
     .from("products")
     .select("*")
-    .eq("tag", tag); // Setara: WHERE tag = '...'
+    .eq("tag", tag);
 
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
@@ -41,10 +38,10 @@ const getProductsByTag = async (req, res) => {
 
 // 4. Create Product
 const createProduct = async (req, res) => {
-  const { name, price, description, tag, image_url } = req.body;
+  const { name, price, description, tag, image_url, rating } = req.body;
   const { data, error } = await supabase
     .from("products")
-    .insert([{ name, price, description, tag, image_url, rating: 4.5 }]);
+    .insert([{ name, price, description, tag, image_url, rating: rating || 4.5 }]);
 
   if (error) return res.status(500).json({ error: error.message });
   res.status(201).json({ message: "Product Created", data });
@@ -59,10 +56,26 @@ const deleteProduct = async (req, res) => {
   res.json({ message: "Product Deleted" });
 };
 
+// 6. Update Product (NEW)
+const updateProduct = async (req, res) => {
+  const { id } = req.params;
+  const { name, price, description, tag, image_url, rating } = req.body;
+
+  const { data, error } = await supabase
+    .from("products")
+    .update({ name, price, description, tag, image_url, rating })
+    .eq("id", id)
+    .select();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ message: "Product Updated", data });
+};
+
 module.exports = {
   getProducts,
   getProductById,
   getProductsByTag,
   createProduct,
   deleteProduct,
+  updateProduct, // <--- WAJIB ADA
 };
