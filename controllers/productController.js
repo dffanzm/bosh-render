@@ -22,7 +22,8 @@ const getProducts = async (req, res) => {
     const { data, error } = await supabase
       .from("products")
       .select("*")
-      .order("is_featured", { ascending: false }) // Yang featured di paling atas
+      // Yang featured di paling atas, lalu urut id
+      .order("is_featured", { ascending: false })
       .order("id", { ascending: true });
 
     if (error) throw error;
@@ -65,7 +66,7 @@ const getProductsByTag = async (req, res) => {
   }
 };
 
-// 5. CREATE PRODUCT (Dengan Upload Gambar ke Bucket 'products')
+// 5. CREATE PRODUCT (Support Dual Image Upload)
 const createProduct = async (req, res) => {
   try {
     const {
@@ -79,35 +80,51 @@ const createProduct = async (req, res) => {
       base_note,
       is_featured,
       image_url, // URL manual (opsional)
+      feature_image_url, // URL manual banner (opsional)
     } = req.body;
 
-    let finalImageUrl = image_url || ""; // Default kosong atau URL string
+    let finalImageUrl = image_url || "";
+    let finalFeatureImageUrl = feature_image_url || "";
 
-    // --- LOGIC UPLOAD GAMBAR ---
+    // --- A. LOGIC UPLOAD IMAGE 1 (Product Icon) ---
     if (req.files && req.files.image) {
       const file = req.files.image;
       const fileExt = file.name.split(".").pop();
-      const fileName = `${Date.now()}.${fileExt}`; // Nama unik: 17238123.jpg
-      const filePath = `${fileName}`;
+      const fileName = `icon-${Date.now()}.${fileExt}`;
 
-      // A. Upload ke bucket 'products'
       const { error: uploadError } = await supabase.storage
-        .from("products") // <--- PASTIIN BUCKET 'products'
-        .upload(filePath, file.data, {
-          contentType: file.mimetype,
-        });
+        .from("products")
+        .upload(fileName, file.data, { contentType: file.mimetype });
 
       if (uploadError) throw uploadError;
 
-      // B. Ambil Public URL
       const { data: urlData } = supabase.storage
         .from("products")
-        .getPublicUrl(filePath);
+        .getPublicUrl(fileName);
 
       finalImageUrl = urlData.publicUrl;
     }
-    // ---------------------------
 
+    // --- B. LOGIC UPLOAD IMAGE 2 (Feature Banner) ---
+    if (req.files && req.files.feature_image) {
+      const file = req.files.feature_image;
+      const fileExt = file.name.split(".").pop();
+      const fileName = `banner-${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("products")
+        .upload(fileName, file.data, { contentType: file.mimetype });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("products")
+        .getPublicUrl(fileName);
+
+      finalFeatureImageUrl = urlData.publicUrl;
+    }
+
+    // --- INSERT KE DATABASE ---
     const { data, error } = await supabase.from("products").insert([
       {
         name,
@@ -115,11 +132,11 @@ const createProduct = async (req, res) => {
         description,
         tag,
         image_url: finalImageUrl,
+        feature_image_url: finalFeatureImageUrl, // Simpan URL banner
         rating: rating || 4.5,
         top_note,
         middle_note,
         base_note,
-        // Konversi string "true"/"false" jadi boolean
         is_featured: is_featured === "true" || is_featured === true,
       },
     ]);
@@ -132,7 +149,7 @@ const createProduct = async (req, res) => {
   }
 };
 
-// 6. UPDATE PRODUCT (Dengan Logic Ganti Gambar)
+// 6. UPDATE PRODUCT (Support Dual Image Update)
 const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
@@ -146,37 +163,52 @@ const updateProduct = async (req, res) => {
       middle_note,
       base_note,
       is_featured,
-      image_url, // URL gambar lama (dikirim dari frontend)
+      image_url, // URL icon lama dari frontend
+      feature_image_url, // URL banner lama dari frontend
     } = req.body;
 
-    let finalImageUrl = image_url; // Default pake gambar lama
+    let finalImageUrl = image_url;
+    let finalFeatureImageUrl = feature_image_url;
 
-    // --- LOGIC GANTI GAMBAR ---
-    // Cuma jalan kalau admin upload file baru
+    // --- A. LOGIC GANTI IMAGE 1 (Icon) ---
     if (req.files && req.files.image) {
       const file = req.files.image;
       const fileExt = file.name.split(".").pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const fileName = `icon-${Date.now()}.${fileExt}`;
 
-      // A. Upload ke bucket 'products'
       const { error: uploadError } = await supabase.storage
-        .from("products") // <--- PASTIIN BUCKET 'products'
-        .upload(filePath, file.data, {
-          contentType: file.mimetype,
-        });
+        .from("products")
+        .upload(fileName, file.data, { contentType: file.mimetype });
 
       if (uploadError) throw uploadError;
 
-      // B. Ambil Public URL Baru
       const { data: urlData } = supabase.storage
         .from("products")
-        .getPublicUrl(filePath);
+        .getPublicUrl(fileName);
 
       finalImageUrl = urlData.publicUrl;
     }
-    // --------------------------
 
+    // --- B. LOGIC GANTI IMAGE 2 (Banner) ---
+    if (req.files && req.files.feature_image) {
+      const file = req.files.feature_image;
+      const fileExt = file.name.split(".").pop();
+      const fileName = `banner-${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("products")
+        .upload(fileName, file.data, { contentType: file.mimetype });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("products")
+        .getPublicUrl(fileName);
+
+      finalFeatureImageUrl = urlData.publicUrl;
+    }
+
+    // --- UPDATE DATABASE ---
     const { data, error } = await supabase
       .from("products")
       .update({
@@ -184,12 +216,12 @@ const updateProduct = async (req, res) => {
         price,
         description,
         tag,
-        image_url: finalImageUrl, // Update URL (baru atau lama)
+        image_url: finalImageUrl, // Update Icon
+        feature_image_url: finalFeatureImageUrl, // Update Banner
         rating,
         top_note,
         middle_note,
         base_note,
-        // Konversi string "true"/"false" jadi boolean
         is_featured: is_featured === "true" || is_featured === true,
       })
       .eq("id", id)
