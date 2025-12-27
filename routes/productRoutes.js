@@ -6,19 +6,19 @@ const {
   getProductsByTag,
   createProduct,
   deleteProduct,
+  updateProduct, // <--- IMPORT INI
 } = require("../controllers/productController");
 
-// 1. Route Spesifik (Tag) - WAJIB DI ATAS ID
+// 1. Tag
 router.get("/tag/:tag", getProductsByTag);
 
-// 2. Route Wildcard (ID)
+// 2. Detail & Update & Delete (ID)
 router.get("/:id", getProductById);
+router.put("/:id", updateProduct); // <--- JALUR UPDATE
+router.delete("/:id", deleteProduct);
 
-// 3. Route Root (All) & Create
+// 3. Root (Get All & Create)
 router.get("/", getProducts);
 router.post("/", createProduct);
-
-// 4. Route Delete
-router.delete("/:id", deleteProduct);
 
 module.exports = router;

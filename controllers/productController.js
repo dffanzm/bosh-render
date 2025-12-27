@@ -28,7 +28,6 @@ const getProductById = async (req, res) => {
 // 3. Get Products by Tag
 const getProductsByTag = async (req, res) => {
   const { tag } = req.params;
-
   const { data, error } = await supabase
     .from("products")
     .select("*")
@@ -38,9 +37,8 @@ const getProductsByTag = async (req, res) => {
   res.json(data);
 };
 
-// 4. Create Product (UPDATED: Ada Notes)
+// 4. Create Product (LENGKAP: Ada Notes)
 const createProduct = async (req, res) => {
-  // Ambil top_note, middle_note, base_note dari body request
   const {
     name,
     price,
@@ -71,7 +69,7 @@ const createProduct = async (req, res) => {
   res.status(201).json({ message: "Product Created", data });
 };
 
-// 5. Update Product (UPDATED: Ada Notes)
+// 5. Update Product (LENGKAP: Ada Notes)
 const updateProduct = async (req, res) => {
   const { id } = req.params;
   const {
