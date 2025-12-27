@@ -80,7 +80,7 @@ const createProduct = async (req, res) => {
       base_note,
       is_featured,
       image_url, // URL manual (opsional)
-      feature_image_url, // URL manual banner (opsional)
+      feature_image_url,
     } = req.body;
 
     let finalImageUrl = image_url || "";
