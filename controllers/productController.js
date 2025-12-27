@@ -1,17 +1,31 @@
 const supabase = require("../config/supabase");
 
-// 1. Get ALL Products
-const getProducts = async (req, res) => {
+// --- TAMBAHAN BARU: Get Featured Products (Buat Homepage) ---
+const getFeaturedProducts = async (req, res) => {
   const { data, error } = await supabase
     .from("products")
     .select("*")
+    .eq("is_featured", true) // Ambil yang dicentang doang
+    .order("id", { ascending: false }); // Yang baru jadi featured paling atas
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+};
+
+// 1. Get ALL Products (Buat Admin Panel - Tetep tampilin semua)
+const getProducts = async (req, res) => {
+  // Kita order biar yang featured muncul paling atas di admin (opsional)
+  const { data, error } = await supabase
+    .from("products")
+    .select("*")
+    .order("is_featured", { ascending: false })
     .order("id", { ascending: true });
 
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 };
 
-// 2. Get Single Product by ID
+// 2. Get Single Product by ID (Gak berubah)
 const getProductById = async (req, res) => {
   const { id } = req.params;
 
@@ -25,7 +39,7 @@ const getProductById = async (req, res) => {
   res.json(data);
 };
 
-// 3. Get Products by Tag
+// 3. Get Products by Tag (Gak berubah)
 const getProductsByTag = async (req, res) => {
   const { tag } = req.params;
   const { data, error } = await supabase
@@ -37,7 +51,7 @@ const getProductsByTag = async (req, res) => {
   res.json(data);
 };
 
-// 4. Create Product (LENGKAP: Ada Notes)
+// 4. Create Product (UPDATE: Nambah is_featured)
 const createProduct = async (req, res) => {
   const {
     name,
@@ -49,6 +63,7 @@ const createProduct = async (req, res) => {
     top_note,
     middle_note,
     base_note,
+    is_featured, // <--- Tangkap dari body
   } = req.body;
 
   const { data, error } = await supabase.from("products").insert([
@@ -59,9 +74,10 @@ const createProduct = async (req, res) => {
       tag,
       image_url,
       rating: rating || 4.5,
-      top_note, // Masuk ke DB
-      middle_note, // Masuk ke DB
-      base_note, // Masuk ke DB
+      top_note,
+      middle_note,
+      base_note,
+      is_featured: is_featured || false, // <--- Masukin DB
     },
   ]);
 
@@ -69,7 +85,7 @@ const createProduct = async (req, res) => {
   res.status(201).json({ message: "Product Created", data });
 };
 
-// 5. Update Product (LENGKAP: Ada Notes)
+// 5. Update Product (UPDATE: Nambah is_featured)
 const updateProduct = async (req, res) => {
   const { id } = req.params;
   const {
@@ -82,6 +98,7 @@ const updateProduct = async (req, res) => {
     top_note,
     middle_note,
     base_note,
+    is_featured, // <--- Tangkap dari body (buat Toggle Switch)
   } = req.body;
 
   const { data, error } = await supabase
@@ -93,9 +110,10 @@ const updateProduct = async (req, res) => {
       tag,
       image_url,
       rating,
-      top_note, // Update DB
-      middle_note, // Update DB
-      base_note, // Update DB
+      top_note,
+      middle_note,
+      base_note,
+      is_featured, // <--- Update DB
     })
     .eq("id", id)
     .select();
@@ -104,7 +122,7 @@ const updateProduct = async (req, res) => {
   res.json({ message: "Product Updated", data });
 };
 
-// 6. Delete Product
+// 6. Delete Product (Gak berubah)
 const deleteProduct = async (req, res) => {
   const { id } = req.params;
   const { error } = await supabase.from("products").delete().eq("id", id);
@@ -115,6 +133,7 @@ const deleteProduct = async (req, res) => {
 
 module.exports = {
   getProducts,
+  getFeaturedProducts, // <--- Export fungsi baru
   getProductById,
   getProductsByTag,
   createProduct,
