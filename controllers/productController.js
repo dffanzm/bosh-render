@@ -1,139 +1,224 @@
 const supabase = require("../config/supabase");
 
-// --- TAMBAHAN BARU: Get Featured Products (Buat Homepage) ---
+// 1. GET FEATURED PRODUCTS (Khusus Homepage)
 const getFeaturedProducts = async (req, res) => {
-  const { data, error } = await supabase
-    .from("products")
-    .select("*")
-    .eq("is_featured", true) // Ambil yang dicentang doang
-    .order("id", { ascending: false }); // Yang baru jadi featured paling atas
+  try {
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .eq("is_featured", true) // Ambil yang aktif featured-nya
+      .order("id", { ascending: false });
 
-  if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };
 
-// 1. Get ALL Products (Buat Admin Panel - Tetep tampilin semua)
+// 2. GET ALL PRODUCTS (Buat Admin & Katalog)
 const getProducts = async (req, res) => {
-  // Kita order biar yang featured muncul paling atas di admin (opsional)
-  const { data, error } = await supabase
-    .from("products")
-    .select("*")
-    .order("is_featured", { ascending: false })
-    .order("id", { ascending: true });
+  try {
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .order("is_featured", { ascending: false }) // Yang featured di paling atas
+      .order("id", { ascending: true });
 
-  if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };
 
-// 2. Get Single Product by ID (Gak berubah)
+// 3. GET PRODUCT BY ID
 const getProductById = async (req, res) => {
-  const { id } = req.params;
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .eq("id", id)
+      .single();
 
-  const { data, error } = await supabase
-    .from("products")
-    .select("*")
-    .eq("id", id)
-    .single();
-
-  if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };
 
-// 3. Get Products by Tag (Gak berubah)
+// 4. GET PRODUCTS BY TAG
 const getProductsByTag = async (req, res) => {
-  const { tag } = req.params;
-  const { data, error } = await supabase
-    .from("products")
-    .select("*")
-    .eq("tag", tag);
+  try {
+    const { tag } = req.params;
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .eq("tag", tag);
 
-  if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };
 
-// 4. Create Product (UPDATE: Nambah is_featured)
+// 5. CREATE PRODUCT (Dengan Upload Gambar ke Bucket 'products')
 const createProduct = async (req, res) => {
-  const {
-    name,
-    price,
-    description,
-    tag,
-    image_url,
-    rating,
-    top_note,
-    middle_note,
-    base_note,
-    is_featured, // <--- Tangkap dari body
-  } = req.body;
-
-  const { data, error } = await supabase.from("products").insert([
-    {
+  try {
+    const {
       name,
       price,
       description,
       tag,
-      image_url,
-      rating: rating || 4.5,
-      top_note,
-      middle_note,
-      base_note,
-      is_featured: is_featured || false, // <--- Masukin DB
-    },
-  ]);
-
-  if (error) return res.status(500).json({ error: error.message });
-  res.status(201).json({ message: "Product Created", data });
-};
-
-// 5. Update Product (UPDATE: Nambah is_featured)
-const updateProduct = async (req, res) => {
-  const { id } = req.params;
-  const {
-    name,
-    price,
-    description,
-    tag,
-    image_url,
-    rating,
-    top_note,
-    middle_note,
-    base_note,
-    is_featured, // <--- Tangkap dari body (buat Toggle Switch)
-  } = req.body;
-
-  const { data, error } = await supabase
-    .from("products")
-    .update({
-      name,
-      price,
-      description,
-      tag,
-      image_url,
       rating,
       top_note,
       middle_note,
       base_note,
-      is_featured, // <--- Update DB
-    })
-    .eq("id", id)
-    .select();
+      is_featured,
+      image_url, // URL manual (opsional)
+    } = req.body;
 
-  if (error) return res.status(500).json({ error: error.message });
-  res.json({ message: "Product Updated", data });
+    let finalImageUrl = image_url || ""; // Default kosong atau URL string
+
+    // --- LOGIC UPLOAD GAMBAR ---
+    if (req.files && req.files.image) {
+      const file = req.files.image;
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Date.now()}.${fileExt}`; // Nama unik: 17238123.jpg
+      const filePath = `${fileName}`;
+
+      // A. Upload ke bucket 'products'
+      const { error: uploadError } = await supabase.storage
+        .from("products") // <--- PASTIIN BUCKET 'products'
+        .upload(filePath, file.data, {
+          contentType: file.mimetype,
+        });
+
+      if (uploadError) throw uploadError;
+
+      // B. Ambil Public URL
+      const { data: urlData } = supabase.storage
+        .from("products")
+        .getPublicUrl(filePath);
+
+      finalImageUrl = urlData.publicUrl;
+    }
+    // ---------------------------
+
+    const { data, error } = await supabase.from("products").insert([
+      {
+        name,
+        price,
+        description,
+        tag,
+        image_url: finalImageUrl,
+        rating: rating || 4.5,
+        top_note,
+        middle_note,
+        base_note,
+        // Konversi string "true"/"false" jadi boolean
+        is_featured: is_featured === "true" || is_featured === true,
+      },
+    ]);
+
+    if (error) throw error;
+    res.status(201).json({ message: "Product Created", data });
+  } catch (error) {
+    console.error("Create Error:", error);
+    res.status(500).json({ error: error.message });
+  }
 };
 
-// 6. Delete Product (Gak berubah)
-const deleteProduct = async (req, res) => {
-  const { id } = req.params;
-  const { error } = await supabase.from("products").delete().eq("id", id);
+// 6. UPDATE PRODUCT (Dengan Logic Ganti Gambar)
+const updateProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      name,
+      price,
+      description,
+      tag,
+      rating,
+      top_note,
+      middle_note,
+      base_note,
+      is_featured,
+      image_url, // URL gambar lama (dikirim dari frontend)
+    } = req.body;
 
-  if (error) return res.status(500).json({ error: error.message });
-  res.json({ message: "Product Deleted" });
+    let finalImageUrl = image_url; // Default pake gambar lama
+
+    // --- LOGIC GANTI GAMBAR ---
+    // Cuma jalan kalau admin upload file baru
+    if (req.files && req.files.image) {
+      const file = req.files.image;
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      // A. Upload ke bucket 'products'
+      const { error: uploadError } = await supabase.storage
+        .from("products") // <--- PASTIIN BUCKET 'products'
+        .upload(filePath, file.data, {
+          contentType: file.mimetype,
+        });
+
+      if (uploadError) throw uploadError;
+
+      // B. Ambil Public URL Baru
+      const { data: urlData } = supabase.storage
+        .from("products")
+        .getPublicUrl(filePath);
+
+      finalImageUrl = urlData.publicUrl;
+    }
+    // --------------------------
+
+    const { data, error } = await supabase
+      .from("products")
+      .update({
+        name,
+        price,
+        description,
+        tag,
+        image_url: finalImageUrl, // Update URL (baru atau lama)
+        rating,
+        top_note,
+        middle_note,
+        base_note,
+        // Konversi string "true"/"false" jadi boolean
+        is_featured: is_featured === "true" || is_featured === true,
+      })
+      .eq("id", id)
+      .select();
+
+    if (error) throw error;
+    res.json({ message: "Product Updated", data });
+  } catch (error) {
+    console.error("Update Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// 7. DELETE PRODUCT
+const deleteProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { error } = await supabase.from("products").delete().eq("id", id);
+
+    if (error) throw error;
+    res.json({ message: "Product Deleted" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };
 
 module.exports = {
   getProducts,
-  getFeaturedProducts, // <--- Export fungsi baru
+  getFeaturedProducts,
   getProductById,
   getProductsByTag,
   createProduct,
