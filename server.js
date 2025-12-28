@@ -6,6 +6,7 @@ const fileUpload = require("express-fileupload");
 // Import Routes
 const productRoutes = require("./routes/productRoutes");
 const bannerRoutes = require("./routes/bannerRoutes");
+const devRoutes = require("./routes/devRoutes"); // <--- 1. IMPORT ROUTE BARU
 
 dotenv.config();
 const app = express();
@@ -35,6 +36,7 @@ app.use(
 // Routes
 app.use("/api/products", productRoutes);
 app.use("/api/banners", bannerRoutes);
+app.use("/api/developers", devRoutes); // <--- 2. DAFTARIN ROUTE DISINI
 
 // Root Endpoint
 app.get("/", (req, res) => {
